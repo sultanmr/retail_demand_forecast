@@ -1,0 +1,12 @@
+# Ignore all CSV files in the data directory
+data/*.csv
+
+# Ignore all PKL files in the model directory
+model/*.pkl
+
+# Ignore Python bytecode files and cache directories
+app/__pycache__/
+model/__pycache__/
+data/__pycache__/
+*.pyc
+*.pyo
