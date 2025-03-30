@@ -1,8 +1,8 @@
 # Ignore all CSV files in the data directory
-data/*.csv
-
-# Ignore all PKL files in the model directory
-model/*.pkl
+venv/
+data/csv_data/
+data/parquet_data/
+learned_models/
 
 # Ignore Python bytecode files and cache directories
 app/__pycache__/

@@ -1,157 +1,162 @@
 # data/data_utils.py
 import pandas as pd
+import numpy as np
 import os
-import gdown
-from app.config import DATA_PATH, GOOGLE_DRIVE_LINKS
+import glob
 from sklearn.preprocessing import LabelEncoder
+import streamlit as st
+from app.config import PARQUET_DATA_PATH, PARQUET_URLS
+import requests
+import io
+from app.config import DATA_PATH, TRAIN_CONF
+from app.utils import update_session_logs
 
-def download_file(file_path, url):
-    """Downloads a file from Google Drive if it doesn't exist locally."""
-    if not os.path.exists(file_path):
-        gdown.download(url, file_path, quiet=False)
-    else:
-        print(f"{file_path} already exists.")
+def load_parquet_files_locally():
+    """
+    Load each Parquet file into a separate DataFrame and store in a dictionary.
+    Returns None if no Parquet files are found.
+    """
 
-def load_data(data_path=DATA_PATH):
-    """Downloads necessary data from Google Drive and loads CSV files into DataFrames."""
+    parquet_files = glob.glob(os.path.join(PARQUET_DATA_PATH, "*.parquet"))
     
-    # Define the paths for all the required data files
-    files = {
-        "stores": f"{data_path}stores.csv",  # Path for stores data
-        "items": f"{data_path}items.csv",  # Path for items data
-        "transactions": f"{data_path}transactions.csv",  # Path for transactions data
-        "oil": f"{data_path}oil.csv",  # Path for oil prices data
-        "holidays_events": f"{data_path}holidays_events.csv",  # Path for holidays and events data
-        "train": f"{data_path}train.csv"  # Path for training data
-    }
+    if not parquet_files:  # Check if no files exist
+        update_session_logs("❌ No Parquet files found in the directory.")
+        return None
 
-    # Download the files if they don't already exist locally
-    for key, file_path in files.items():
-        download_file(file_path, GOOGLE_DRIVE_LINKS[key])
+    dataframes = {}
 
-    # Load each downloaded CSV file into a pandas DataFrame
-    df_stores = pd.read_csv(files["stores"])  # Stores data
-    df_items = pd.read_csv(files["items"])  # Items data
-    df_transactions = pd.read_csv(files["transactions"])  # Transactions data
-    df_oil = pd.read_csv(files["oil"])  # Oil prices data
-    df_holidays = pd.read_csv(files["holidays_events"])  # Holidays and events data
+    for file in parquet_files:
+        file_name = os.path.basename(file).replace(".parquet", "") 
+        try:
+            dataframes[file_name] = pd.read_parquet(file, engine="pyarrow") 
+            update_session_logs(f"✅ Loaded {file} into DataFrame: {file_name}")
+        except Exception as e:
+            update_session_logs(f"⚠️ Error loading {file}: {e}")
+
+    return dataframes
+
+
+def load_parquet_from_url():
+    """
+    Loads Parquet files directly from URLs into a dictionary of DataFrames.
+    """
+    dataframes = {}
+
+    for name, url in PARQUET_URLS.items():
+        update_session_logs(f"⬇️ Loading {name} ...")
+        try:
+            response = requests.get(url, stream=True)
+            if response.status_code == 200:
+                df = pd.read_parquet(io.BytesIO(response.content), engine="pyarrow")
+                dataframes[name] = df              
+            else:
+                update_session_logs(f"❌ Failed to load {name} (HTTP {response.status_code})")
+        except Exception as e:
+            update_session_logs(f"⚠️ Error loading {name}: {e}")
+
+    return dataframes
+
+
+def load_data():
+    """Loads the training data and related datasets."""
+    update_session_logs("Loading data...")
     
-    # Load data only for stores in 'Pichincha' region
-    # Get the list of store IDs for the state 'Pichincha'
-    store_ids = df_stores[df_stores['state'] == 'Pichincha']['store_nbr'].unique()
-    # Select the same items as for "Classical methods":
-    item_ids = [564533, 838216, 582865, 364606]  # ToDo: add more items (e.g., all items from a family)
-    # Select data before April 2014
-    max_date = '2014-04-01'
+    dfs = load_parquet_files_locally()
+    if dfs is None:
+        dfs = load_parquet_from_url()
 
-    # Initialize an empty list to hold filtered chunks
-    filtered_chunks = []
-
-    # Define the chunk size (number of rows per chunk)
-    chunk_size = 10 ** 6  # Adjust based on your system's memory capacity
-
-    # Read the CSV file in chunks
-    for chunk in pd.read_csv(files["train"], chunksize=chunk_size):
-        # Filter the chunk for the desired store IDs
-        chunk_filtered = chunk[
-            (chunk['store_nbr'].isin(store_ids)) & 
-            (chunk['item_nbr'].isin(item_ids)) & 
-            (chunk['date'] < max_date)
-        ]
-        # Append the filtered chunk to the list
-        filtered_chunks.append(chunk_filtered)
-        # Optional: Delete the chunk to free up memory
-        del chunk
-
-    # Concatenate all filtered chunks into a single DataFrame
-    df_filtered = pd.concat(filtered_chunks, ignore_index=True)
-
-    # Clean up to free memory
-    del filtered_chunks
-
-    # Group by date and aggregate sales
-    df_filtered = df_filtered.groupby(['store_nbr', 'item_nbr', 'date']).sum()['unit_sales'].reset_index()
-
-    # Return all the loaded DataFrames
-    return df_stores, df_items, df_transactions, df_oil, df_holidays, df_filtered
-
-def preprocess_input_data(store_id, item_id, split_date, df_stores, df_items, df_filtered):
-    """Preprocesses input data into a format suitable for model prediction."""
+    df_stores = dfs["stores"]
+    df_items = dfs["items"]
+    df_transactions = dfs["transactions"]
+    df_oil = dfs["oil"]
+    df_holidays = dfs["holidays_events"]
+    df_train = dfs["train"]
+        
+    # Convert date columns to datetime
+    update_session_logs("Converting date columns to datetime...")
+    date_columns = ['date']
+    for df in [df_train, df_transactions, df_oil, df_holidays]:
+        for col in date_columns:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col])
     
-  
-    # Convert the 'date' column to datetime format for easy manipulation
-    df_filtered['date'] = pd.to_datetime(df_filtered['date'])
-    split_date = pd.to_datetime(split_date)  # Convert the split_date to datetime
+    update_session_logs("Data loading complete", level='success')
+    return df_stores, df_items, df_transactions, df_oil, df_holidays, df_train
 
-    # Get the minimum and maximum dates in the dataset to create a full date range
-    min_date = df_filtered['date'].min()
-    max_date = df_filtered['date'].max()
-    print("Before filtering", min_date.date(), max_date.date())
-
-    # Filter the dataset to only include dates after the specified split date
-    df_filtered = df_filtered[df_filtered['date'] >= split_date]  # Filter rows by date
+def preprocess_input_data(store_id, item_id, date, df_stores, df_items, df_train):
+    """Preprocess input data for prediction"""
+    update_session_logs("Preprocessing input data...")
     
-    # Group by store, item, and date, then aggregate (sum) the unit_sales for each group
-    df_filtered = df_filtered.groupby(['store_nbr', 'item_nbr', 'date']).sum()['unit_sales'].reset_index()
+    # Create date range for the specific store-item combination
+    start_date = df_train['date'].min()
+    end_date = date
 
-    # Create a full date range covering all days between the min and max dates
-    full_date_range = pd.date_range(start=min_date, end=max_date, freq='D')
-
-    # Create an empty DataFrame to store the final result
-    df_filled = pd.DataFrame()
-
-		# Add missing 0 sales
-    # Iterate through each store and item combination in the filtered data 
-    for (store, item), group in df_filtered.groupby(['store_nbr', 'item_nbr']):
-        # Set 'date' as index and sort by date
-        group.set_index('date', inplace=True)
-        group = group.sort_index()
-
-        # Reindex the group to fill in missing dates with 0 sales
-        group = group.reindex(full_date_range, fill_value=0)
-
-        # Add the store and item numbers back to each row
-        group['store_nbr'] = store
-        group['item_nbr'] = item
-
-        # Ensure that missing sales values are filled with 0
-        group['unit_sales'] = group['unit_sales'].fillna(0)
-
-        # Append this group's data to the final DataFrame
-        df_filled = pd.concat([df_filled, group])
-
-    # Reset the index so that 'date' is a regular column again
-    df_filled.reset_index(inplace=True)
-    df_filled.rename(columns={'index': 'date'}, inplace=True)
-
-    # Feature engineering: extract date-related features
-    df_filled['month'] = df_filled['date'].dt.month  # Extract the month from the date
-    df_filled['day'] = df_filled['date'].dt.day  # Extract the day from the date
-    df_filled['weekofyear'] = df_filled['date'].dt.isocalendar().week  # Extract the ISO week of the year
-    df_filled['dayofweek'] = df_filled['date'].dt.dayofweek  # Extract the day of the week (0=Monday, 6=Sunday)
+    full_date_range = pd.date_range(start=start_date, end=end_date, freq='D')
     
-    # Create rolling features for unit_sales (7-day rolling mean and standard deviation)
-    df_filled['rolling_mean'] = df_filled['unit_sales'].rolling(window=7).mean()
-    df_filled['rolling_std'] = df_filled['unit_sales'].rolling(window=7).std()
-
-    # Create lag features (sales from the previous day, previous week)
-    df_filled['lag_1'] = df_filled['unit_sales'].shift(1)  # Sales from the previous day
-    df_filled['lag_7'] = df_filled['unit_sales'].shift(7)  # Sales from 7 days ago
-    df_filled['lag_30'] = df_filled['unit_sales'].shift(30)  # Sales from 30 days ago
-
-    # Drop any rows with NaN values after creating lag features (for rows without enough data)
-    df_filled.dropna(inplace=True)
-
-    # Merge the filled DataFrame with store and item data to include more information
-    df_filled = df_filled.merge(df_stores, on='store_nbr', how='left').merge(df_items, on='item_nbr', how='left')
-
-    # Encode categorical columns with LabelEncoder to convert them into numeric format
-    for col in ['city', 'state', 'type', 'family', 'class']:  # List of categorical columns to encode
-        le = LabelEncoder()  # Initialize the label encoder
-        df_filled[col] = le.fit_transform(df_filled[col])  # Apply the encoder to the column
-
-    # Sort the final DataFrame by store number, item number, and date
-    df_filled = df_filled.sort_values(by=['store_nbr', 'item_nbr', 'date'])
-
-    # Return the preprocessed and feature-engineered DataFrame
+    # Filter data for specific store and item
+    df_filtered = df_train[
+        (df_train['store_nbr'] == store_id) & 
+        (df_train['item_nbr'] == item_id)
+    ].copy()
+    
+    # Create a complete DataFrame with all dates
+    df_complete = pd.DataFrame({'date': full_date_range})
+    df_complete['store_nbr'] = store_id
+    df_complete['item_nbr'] = item_id
+    
+    # Merge with original data to get sales
+    df_filled = pd.merge(
+        df_complete,
+        df_filtered[['date', 'unit_sales']],
+        on='date',
+        how='left'
+    )
+    
+    median = df_filled['unit_sales'].median()
+    df_filled['unit_sales'] = df_filled['unit_sales'].fillna(median)
+    
+    # Add store and item features
+    store_features = df_stores[df_stores['store_nbr'] == store_id].iloc[0]
+    item_features = df_items[df_items['item_nbr'] == item_id].iloc[0]
+    
+    # Add features
+    df_filled['store_type'] = store_features['type']
+    df_filled['store_cluster'] = store_features['cluster']
+    df_filled['item_family'] = item_features['family']
+    df_filled['item_class'] = item_features['class']
+    df_filled['item_perishable'] = item_features['perishable']
+    
+    # Add time-based features
+    df_filled['month'] = df_filled['date'].dt.month.astype(int)
+    df_filled['day'] = df_filled['date'].dt.day.astype(int)
+    df_filled['weekofyear'] = df_filled['date'].dt.isocalendar().week.astype(int)
+    df_filled['dayofweek'] = df_filled['date'].dt.dayofweek.astype(int)
+    
+    # Add rolling features
+    df_filled['rolling_mean_7'] = df_filled['unit_sales'].rolling(window=7, min_periods=1).mean().astype(float)
+    df_filled['rolling_std_7'] = df_filled['unit_sales'].rolling(window=7, min_periods=1).std().astype(float)
+    
+    # Add lag features
+    df_filled['lag_1'] = df_filled['unit_sales'].shift(1).fillna(0).astype(float)
+    df_filled['lag_7'] = df_filled['unit_sales'].shift(7).fillna(0).astype(float)
+    
+    # Convert categorical features to numeric using LabelEncoder
+    le = LabelEncoder()
+    categorical_columns = ['store_type', 'store_cluster', 'item_family', 'item_class']
+    for col in categorical_columns:
+        df_filled[col] = le.fit_transform(df_filled[col].astype(str)).astype(int)
+    
+    # Ensure all numeric columns are float type
+    numeric_columns = [
+        'store_nbr', 'item_nbr', 'unit_sales', 'month', 'day', 
+        'weekofyear', 'dayofweek', 'rolling_mean_7', 'rolling_std_7',
+        'lag_1', 'lag_7', 'store_type', 'store_cluster', 
+        'item_family', 'item_class', 'item_perishable'
+    ]
+    
+    for col in numeric_columns:
+        df_filled[col] = df_filled[col].astype(float)
+    
+    update_session_logs("Input data preprocessing completed")
     return df_filled
+
