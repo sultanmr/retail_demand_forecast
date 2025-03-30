@@ -98,6 +98,10 @@ def convert_all():
     # Display first few rows
     print(df_all.head())
 
+csv_files = [
+    "items_filtered.csv",
+    "transactions_filtered.csv"
+]
 
-dfs = load_parquet_from_url()
-print (dfs["train"].head())
+output_folder = "D:/Masterschool/projects/retail_demand_forecast/sales forecasting/tests"
+parquet_files = convert_csv_to_parquet(csv_files, output_folder, compression="snappy")

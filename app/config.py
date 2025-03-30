@@ -8,11 +8,14 @@ NGROK_TOKEN = "2uj6ia3aPjGFf0A4arHdWFTU4xl_3HoYKVeNMkSd31veLbVKc"
 
 PARQUET_URLS = {
     "stores": "https://www.dropbox.com/scl/fi/qg59hyt4j2enf8chirmxc/stores.parquet?rlkey=k4qpbts5z5z7e9vj88svz1l1p&st=7js28mm3&dl=1",
-    "items": "https://www.dropbox.com/scl/fi/mddbhs0a5mopz3ee3f9r0/items.parquet?rlkey=m1jfge4597in5ebopirupb015&st=am4styzm&dl=1",
-    "transactions": "https://www.dropbox.com/scl/fi/u03xnhjv4er3m9iyrfyfy/transactions.parquet?rlkey=fmyx972zcmhpsaglzr6ng8jhi&st=a321t4zo&dl=1",
+    #"items": "https://www.dropbox.com/scl/fi/mddbhs0a5mopz3ee3f9r0/items.parquet?rlkey=m1jfge4597in5ebopirupb015&st=am4styzm&dl=1",
+    "items": "https://www.dropbox.com/scl/fi/3lk240vajdikohn3js88g/items_filtered.parquet?rlkey=mb02fjipvosjrxrmy7ygtsqxc&st=zpyohhmn&dl=1",
+    #"transactions": "https://www.dropbox.com/scl/fi/u03xnhjv4er3m9iyrfyfy/transactions.parquet?rlkey=fmyx972zcmhpsaglzr6ng8jhi&st=a321t4zo&dl=1",
+    "transactions": "https://www.dropbox.com/scl/fi/x2cn1hn233mapfqugato2/transactions_filtered.parquet?rlkey=tbwlo8c4gd87b6td0xtu6r9xq&st=14at9dwc&dl=1",
     "oil": "https://www.dropbox.com/scl/fi/22vwswwqquuidamrs13ph/oil.parquet?rlkey=uwmuckrefznoba8yy23v68901&st=r5s8ppn0&dl=1",
     "holidays_events": "https://www.dropbox.com/scl/fi/8bbukgb8yiqhre2hsa9tn/holidays_events.parquet?rlkey=k16gfluy8ptiuwmz3r7qrbmph&st=k4xopv3u&dl=1",
-    "train": "https://www.dropbox.com/scl/fi/era49npmh6z06mop7wvcu/train.parquet?rlkey=6hex970ie7jgp12l6aj3lefwd&st=88r39fbh&dl=1",
+    #"train": "https://www.dropbox.com/scl/fi/era49npmh6z06mop7wvcu/train.parquet?rlkey=6hex970ie7jgp12l6aj3lefwd&st=88r39fbh&dl=1",
+    "train": "https://www.dropbox.com/scl/fi/g4yqq4dvuaa7jj7s6yioz/train_filtered.parquet?rlkey=m7rpku6f7ranrydw9givg0m4f&st=48azgjkf&dl=1",
 }
 
 MODEL_URLS = {

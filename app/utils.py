@@ -60,24 +60,36 @@ def setup_logger():
 
     return logger, setup_mlflow()
 
+mlflow_url = None
+
 def setup_mlflow():
-    ngrok.set_auth_token(NGROK_TOKEN)
-    ngrok.kill()
-    mlflow_storage_path = "/content/mlruns"
-    
-    mlflow_url = ngrok.connect(8501)
-    
-    mlflow.set_tracking_uri(f"file:{mlflow_storage_path}")
-    mlflow.set_experiment("Sales Forecasting")
+    global mlflow_url    
+    try:
+        ngrok.set_auth_token(NGROK_TOKEN)
+        ngrok.kill()
+        mlflow_storage_path = "/content/mlruns"
+        
+        mlflow_url = ngrok.connect(8501)
+        
+        mlflow.set_tracking_uri(f"file:{mlflow_storage_path}")
+        mlflow.set_experiment("Sales Forecasting")
+    except:
+        pass
     
     return mlflow_url
 
 def log_model(model, name):   
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        if "xgb" in name:
-            executor.submit(log_xgb, model, name)
-        else:
-            executor.submit(log_lstm, model, name)
+    global mlflow_url
+    if mlflow_url is None:
+        return
+    try:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            if "xgb" in name:
+                executor.submit(log_xgb, model, name)
+            else:
+                executor.submit(log_lstm, model, name)
+    except:
+        pass
 
 def log_xgb(model, name):
     with mlflow.start_run():
