@@ -4,9 +4,6 @@
 
 ## Overview
 
-
-**Overview**
-
 This project aims to build a sales forecasting model using machine learning techniques, specifically **XGBoost** and **Long Short-Term Memory (LSTM)**. The goal is to predict future sales based on historical sales data, utilizing both traditional machine learning models (XGBoost) and deep learning models (LSTM) to improve the forecasting accuracy.
 
 **Project Structure**
