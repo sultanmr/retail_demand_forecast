@@ -78,7 +78,7 @@ pyngrok==7.2.3
 pyparsing==3.2.3
 python-dateutil==2.9.0.post0
 pytz==2025.2
-pywin32==307
+pywin32==301
 PyYAML==6.0.2
 referencing==0.36.2
 requests==2.32.3
