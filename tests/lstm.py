@@ -25,8 +25,8 @@ data = generate_data()
 scaler = MinMaxScaler()
 data_scaled = scaler.fit_transform(data.reshape(-1, 1))
 seq_length = 20
-X, y = create_sequences(data_scaled, seq_length)
-X = X.reshape((X.shape[0], X.shape[1], 1))
+X, y = create_sequences(data_scaled, seq_length) #<=============
+X = X.reshape((X.shape[0], X.shape[1], 1))  #<=============
 
 # Split into training and testing sets
 train_size = int(len(X) * 0.8)
@@ -46,8 +46,8 @@ model.fit(X_train, y_train, epochs=20, batch_size=16, validation_data=(X_test, y
 
 # Make predictions
 y_pred = model.predict(X_test)
-y_pred = scaler.inverse_transform(y_pred)
-y_test = scaler.inverse_transform(y_test.reshape(-1, 1))
+y_pred = scaler.inverse_transform(y_pred)  #<=============
+y_test = scaler.inverse_transform(y_test.reshape(-1, 1))  #<=============
 
 # Plot results
 plt.figure(figsize=(10, 5))

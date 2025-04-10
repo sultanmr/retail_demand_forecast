@@ -1,6 +1,14 @@
 import datetime
 # app/config.py
 
+MLFLOW_CONFIG = {
+"MLFLOW_TRACKING_USERNAME": "sultanmr",
+"MLFLOW_TRACKING_PASSWORD": "79869daf4b3a7f1cdc2fffb3cd3d867c67454e2a",
+"MLFLOW_TRACKING_URI" : "https://dagshub.com/sultanmr/my-first-repo.mlflow/",
+"MLFLOW_EXPERIMENT_NAME": "retail_forecast_experiment",
+"MLFLOW_MODEL_NAME":  "retail_forecast_model",
+}
+
 DATA_PATH = "data/csv_data"
 PARQUET_DATA_PATH = "data/parquet_data"
 MODEL_PATH = 'learned_models/'

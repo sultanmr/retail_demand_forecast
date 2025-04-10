@@ -8,10 +8,15 @@ import mlflow.xgboost
 import mlflow.keras
 import xgboost as xgb
 from pyngrok import ngrok
-
-from app.config import NGROK_TOKEN
+import os
+import tempfile
+from app.config import NGROK_TOKEN, MLFLOW_CONFIG
+#import app.config
 
 log_container = None
+
+
+
 
 def update_logs(lc=None):    
     global log_container
@@ -58,25 +63,37 @@ def setup_logger():
     # Add handler to logger
     logger.addHandler(console_handler)
 
-    return logger, setup_mlflow()
+    return logger, mlflow_init()
 
 mlflow_url = None
 
-def setup_mlflow():
-    global mlflow_url    
-    try:
-        ngrok.set_auth_token(NGROK_TOKEN)
-        ngrok.kill()
-        mlflow_storage_path = "/content/mlruns"
-        
-        mlflow_url = ngrok.connect(8501)
-        
-        mlflow.set_tracking_uri(f"file:{mlflow_storage_path}")
-        mlflow.set_experiment("Sales Forecasting")
-    except:
-        pass
+def mlflow_init():
+    os.environ['MLFLOW_TRACKING_USERNAME'] = MLFLOW_CONFIG['MLFLOW_TRACKING_USERNAME']
+    os.environ['MLFLOW_TRACKING_PASSWORD'] = MLFLOW_CONFIG['MLFLOW_TRACKING_PASSWORD']
+    mlflow.set_tracking_uri(MLFLOW_CONFIG['MLFLOW_TRACKING_URI'])
+    mlflow.set_experiment(MLFLOW_CONFIG['MLFLOW_EXPERIMENT_NAME'])
+    mlflow_url = MLFLOW_CONFIG['MLFLOW_TRACKING_URI']
+    mlflow.set_tracking_uri(mlflow_url)     
+    # experiment_url = mlflow_url    
+    # with mlflow.start_run() as run:      
+    #     print ("*"*100)
+    #     run_id = run.info.run_id        
+    #     experiment_url = f"{mlflow_url}/#/experiments/0/runs/{run_id}"
+    #     print (f"Experiment URL: {experiment_url}")
+    #     print ("*"*100)
     
     return mlflow_url
+
+
+import tempfile
+import mlflow
+
+def log_image(fig, artifact_path="plots"):
+    """Save a Plotly figure and log it as an image artifact in MLflow."""
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_img:
+        fig.write_image(tmp_img.name)  # Removed bbox_inches, Plotly doesn't use it
+        mlflow.log_artifact(tmp_img.name, artifact_path=artifact_path)
+
 
 def log_model(model, name):   
     global mlflow_url
@@ -153,7 +170,10 @@ def log(message, level='info', update_ui=True):
     """Log a message to both console and Streamlit UI"""
     # Update session state logs
     update_session_logs(message, level)
-    
+    try:
+        mlflow.log_param(level, str(message))
+    except:
+        pass
     # Only update UI if requested and we're in Streamlit context
     if update_ui and is_streamlit_running():
         update_logs()

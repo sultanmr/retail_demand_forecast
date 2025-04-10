@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 import datetime
 import pandas as pd
 from app.config import TRAIN_CONF, DEFAULTS, ITEM_IDS
-from app.utils import log, log_model
+from app.utils import log, log_model, log_image
 
 
 
@@ -277,7 +277,7 @@ def main():
                 yaxis_title="Sales",
                 hovermode='x unified'
             )
-                
+            log_image(fig)
             st.plotly_chart(fig, use_container_width=True)
                 
             # Display predictions in a more readable format
